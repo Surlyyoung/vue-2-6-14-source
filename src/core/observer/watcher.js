@@ -23,6 +23,7 @@ let uid = 0
  * A watcher parses an expression, collects dependencies,
  * and fires callback when the expression value changes.
  * This is used for both the $watch() api and directives.
+ * 谁用到了数据，谁就是依赖，就为谁创建一个Watcher实例
  */
 export default class Watcher {
   vm: Component;
@@ -98,12 +99,16 @@ export default class Watcher {
 
   /**
    * Evaluate the getter, and re-collect dependencies.
+   * 当外界通过Watcher读取数据时，会触发getter从而将Watcher添加到依赖中
    */
   get () {
+    /* Wather实例作为Dep.target Wather实例就代表此依赖 */
+    /* Dep.target这个全局唯一的值就有了 */
     pushTarget(this)
     let value
     const vm = this.vm
     try {
+      /* 读取数据，触发getter，收集依赖(Wather实例，dep.depend()) */
       value = this.getter.call(vm, vm)
     } catch (e) {
       if (this.user) {
@@ -117,6 +122,7 @@ export default class Watcher {
       if (this.deep) {
         traverse(value)
       }
+      /* 收集完后立即释放Dep.target */
       popTarget()
       this.cleanupDeps()
     }
@@ -125,6 +131,7 @@ export default class Watcher {
 
   /**
    * Add a dependency to this directive.
+   * 添加dep实例(依赖)
    */
   addDep (dep: Dep) {
     const id = dep.id
@@ -161,6 +168,7 @@ export default class Watcher {
   /**
    * Subscriber interface.
    * Will be called when a dependency changes.
+   * 依赖值更新，Dep实例notify时调用
    */
   update () {
     /* istanbul ignore else */
@@ -176,6 +184,7 @@ export default class Watcher {
   /**
    * Scheduler job interface.
    * Will be called by the scheduler.
+   * 依赖值更新，执行回调
    */
   run () {
     if (this.active) {

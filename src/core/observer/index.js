@@ -33,6 +33,7 @@ export function toggleObserving (value: boolean) {
  * object. Once attached, the observer converts the target
  * object's property keys into getter/setters that
  * collect dependencies and dispatch updates.
+ * 观察者？
  */
 export class Observer {
   value: any;
@@ -41,10 +42,11 @@ export class Observer {
 
   constructor (value: any) {
     this.value = value
+    /* 依赖管理器Dep类主要属性是subs:[],主要方法是notify() */
     this.dep = new Dep()
     this.vmCount = 0
     /* def函数是defineProperty的简单封装 */
-    /* def为监测的对象增加个'__ob__'属性，值为Observer的当前实例 */
+    /* def为监测的对象增加个'__ob__'属性，值为Observer的当前实例，表示已转化成响应式，避免重复操作 */
     def(value, '__ob__', this)
     if (Array.isArray(value)) { // 数组情况
       /* hasProto判断是否含有'__proto__'属性，实例中的原型属性，[高程]称为隐性原型，现代浏览器基本拥有此属性 */
@@ -116,9 +118,12 @@ export function observe (value: any, asRootData: ?boolean): Observer | void {
     return
   }
   let ob: Observer | void
+  /* 如果转化过，已经有'__ob__'属性 */
   if (hasOwn(value, '__ob__') && value.__ob__ instanceof Observer) {
     ob = value.__ob__
   } else if (
+    /* 如果是服务端渲染且是数组 或 是对象且可扩展且不是vue对象 */
+    /* 递归去转化 */
     shouldObserve &&
     !isServerRendering() &&
     (Array.isArray(value) || isPlainObject(value)) &&
@@ -143,8 +148,11 @@ export function defineReactive (
   customSetter?: ?Function,
   shallow?: boolean
 ) {
+  /* Dep类主要属性是subs:[],主要方法是notify() */
+  /* 依赖对象的每一个属性都生成一个dep实例 */
   const dep = new Dep()
 
+  /* 不可修改的对象 */
   const property = Object.getOwnPropertyDescriptor(obj, key)
   if (property && property.configurable === false) {
     return
@@ -157,13 +165,16 @@ export function defineReactive (
     val = obj[key]
   }
 
+  /* 判断是否深层对象，有无子级 */
   let childOb = !shallow && observe(val)
   Object.defineProperty(obj, key, {
     enumerable: true,
     configurable: true,
     get: function reactiveGetter () {
       const value = getter ? getter.call(obj) : val
+      /* Dep.target是全局唯一属性 */
       if (Dep.target) {
+        /* 收集依赖，即收集Watcher实例(订阅者)，之后代表着对应的依赖 */
         dep.depend()
         if (childOb) {
           childOb.dep.depend()
@@ -192,6 +203,8 @@ export function defineReactive (
         val = newVal
       }
       childOb = !shallow && observe(newVal)
+      /* 每次更新依赖的值都执行notify()触发更新 */
+      /* 不直接去通知依赖更新，而是通知依赖对应的Watch实例，由Watcher实例去通知真正的视图 */
       dep.notify()
     }
   })

@@ -20,6 +20,7 @@ export default class Dep {
     this.subs = []
   }
 
+  /* 添加Watcher实例(订阅者？)，Watcher实例代表着一个依赖 */
   addSub (sub: Watcher) {
     this.subs.push(sub)
   }
@@ -30,6 +31,8 @@ export default class Dep {
 
   depend () {
     if (Dep.target) {
+      /* Dep.target是缓存的Watcher实例 */
+      /* 紧接着会调用this.addSub()添加Watcher实例 */
       Dep.target.addDep(this)
     }
   }
